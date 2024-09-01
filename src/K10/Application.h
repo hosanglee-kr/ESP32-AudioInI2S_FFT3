@@ -5,10 +5,25 @@
 // #include <freertos/FreeRTOS.h>
 // #include <freertos/task.h>
 
+#define AUDIOPROCESS_T1
+#define AUDIOPROCESS_T2
+
+
+
 #include "config.h"
 
 class UI;
-class Processor;
+
+#ifdef AUDIOPROCESS_T1
+    class Processor;
+#endif
+
+#ifdef AUDIOPROCESS_T2
+    class FFT_T2;
+#endif
+
+//src/K10/AudioProcessT2/FFT_T2.h
+
 class I2SSampler;
 class TFT_eSPI;
 
@@ -17,7 +32,16 @@ private:
 	int			m_window_size;
 	int16_t	   *m_sample_buffer;
 	UI		   *m_ui;
-	Processor  *m_processor;
+
+        #ifdef AUDIOPROCESS_T1
+            Processor  *m_processor;
+        #endif
+
+        #ifdef AUDIOPROCESS_T2
+           FFT_T2   *m_processor;
+        #endif
+
+
 	I2SSampler *m_sampler;
 
 	void process_samples();
