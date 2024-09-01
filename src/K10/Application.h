@@ -5,7 +5,7 @@
 // #include <freertos/FreeRTOS.h>
 // #include <freertos/task.h>
 
-#define AUDIOPROCESS_T1
+//#define AUDIOPROCESS_T1
 #define AUDIOPROCESS_T2
 
 
