@@ -14,6 +14,7 @@ private:
     ArduinoFFT<float> FFT ; //= ArduinoFFT<float>(vReal, vImag, samples, samplingFrequency);;  // arduinoFFT 객체 추가
 
 public:
+    float *m_fft_input;     // FFT 입력 데이터의 실수 부분
     float *m_energy;
 
     FFT_T2(int window_size);
