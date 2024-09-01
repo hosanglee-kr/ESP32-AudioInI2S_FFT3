@@ -4,39 +4,58 @@
 #include <WiFiMulti.h>
 
 
-#define DD10_FASTLED
+//#define DD10_FASTLED
 
 #ifdef DD10_FASTLED
 	#include "D10_FastLED_001.h"
 #endif
 
 
-#define E10_FREQ
+//#define E10_FREQ
 
 #ifdef E10_FREQ
 	#include "E10_Frequencies_001.h"
 #endif
 
 
-#define F10_FREQ
+//#define F10_FREQ
 
 #ifdef F10_FREQ
 	#include "F10_FrequencyRange_001.h"
 #endif
 
 
-#define G10
+//#define G10
 
 #ifdef G10
 	#include "G10_Basic-Visuals_001.h"
 #endif
 
 
-#define H10
+//#define H10
 
 #ifdef H10
 	#include "H10_Advanced-Visuals_001.h"
 #endif
+
+
+#define K10
+
+#ifdef K10
+
+	#include <Arduino.h>
+	#include <TFT_eSPI.h>
+	#include <freertos/FreeRTOS.h>
+	#include <freertos/task.h>
+
+	#include "K10/Application.h"
+	//#include "Application.h"
+
+	Application *application;
+#endif
+
+
+
 
 void setup(){
 	Serial.begin(115200);
@@ -62,6 +81,17 @@ void setup(){
 		H10_init();
 	#endif
 
+	#ifdef K10
+		TFT_eSPI *display = new TFT_eSPI();
+		display->begin();
+		display->setRotation(1);
+
+		application = new Application(*display);
+		application->begin();
+	#endif
+
+
+  
 }
 
 void loop(){
@@ -87,4 +117,7 @@ void loop(){
 		H10_run();
 	#endif
 
+	#ifdef K10
+		application->loop();
+	#endif
 }
