@@ -20,15 +20,15 @@ void processing_task(void *param) {
 }
 
 Application::Application(TFT_eSPI &display) {
-	m_window_size	= WINDOW_SIZE;
-	m_sample_buffer = (int16_t *)malloc(sizeof(int16_t) * WINDOW_SIZE);
+	m_window_size	= G_K10_WINDOW_SIZE;
+	m_sample_buffer = (int16_t *)malloc(sizeof(int16_t) * G_K10_WINDOW_SIZE);
 	m_ui			= new UI(display, m_window_size);
 	m_processor		= new Processor(m_window_size);
 
-	#ifdef USE_I2S_MIC_INPUT
+	#ifdef G_K10_USE_I2S_MIC_INPUT
 		m_sampler = new I2SMEMSSampler(I2S_NUM_0, i2s_mic_pins, i2s_mic_Config);
 	#else
-		m_sampler = new ADCSampler(ADC_UNIT_1, ADC_MIC_CHANNEL, i2s_adc_config);
+		m_sampler = new ADCSampler(ADC_UNIT_1, G_K10_ADC_MIC_CHANNEL, i2s_adc_config);
 	#endif
 
 	pinMode(G_K10_GPIO_BUTTON, INPUT_PULLUP);
@@ -45,7 +45,7 @@ void Application::begin() {
 
 void Application::process_samples() {
 	// grab the samples
-	m_sampler->read(m_sample_buffer, WINDOW_SIZE);
+	m_sampler->read(m_sample_buffer, G_K10_WINDOW_SIZE);
 	m_processor->update(m_sample_buffer);
 	m_ui->update(m_processor->m_fft_input, m_processor->m_energy);
 }
