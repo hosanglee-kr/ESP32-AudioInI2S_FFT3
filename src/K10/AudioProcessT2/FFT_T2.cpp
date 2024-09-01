@@ -26,13 +26,13 @@ void FFT_T2::update(int16_t *samples) {
     }
 
     // arduinoFFT의 Windowing 함수로 Hamming 윈도우 적용
-    FFT.Windowing(vReal, m_fft_size, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
+    FFT.windowing(vReal, m_fft_size, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
 
     // FFT 계산 수행
-    FFT.Compute(vReal, vImag, m_fft_size, FFT_FORWARD);
+    FFT.compute(vReal, vImag, m_fft_size, FFT_FORWARD);
 
     // 복소수 결과를 크기로 변환
-    FFT.ComplexToMagnitude(vReal, vImag, m_fft_size);
+    FFT.complexToMagnitude(vReal, vImag, m_fft_size);
 
     // 에너지 계산
     for (int i = 0; i < m_window_size / 4; i++) {
