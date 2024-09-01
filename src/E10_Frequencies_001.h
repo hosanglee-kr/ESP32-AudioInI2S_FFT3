@@ -1,21 +1,22 @@
-/*
-	Frequencies.ino
-	By Shea Ivey
 
-	Reads I2S microphone data into g_E10_samples[], processes them into frequency buckets and then outputs it to the serial plotter for viewing.
-	Try wistling differrent tones to see which frequency buckets they fall into.
+// Frequencies.ino
+// By Shea Ivey
 
-	TIP: uncomment the g_E10_audioInfo.autoLevel() to see how the loud and quiet noises are handled.
-*/
+// Reads I2S microphone data into g_E10_samples[],
+// processes them into frequency buckets 
+// and then outputs it to the serial plotter for viewing.
+// Try wistling differrent tones to see which frequency buckets they fall into.
+
+// TIP: uncomment the g_E10_audioInfo.autoLevel() to see how the loud and quiet noises are handled.
 
 
 #include <AudioInI2S.h>
 
-#define G_E10_SAMPLE_SIZE 1024	// Buffer size of read samples
-#define G_E10_SAMPLE_RATE 44100 // Audio Sample Rate
+#define 	G_E10_SAMPLE_SIZE 	1024	// Buffer size of read samples
+#define 	G_E10_SAMPLE_RATE 	44100 	// Audio Sample Rate
 
-/* Required defines for audio analysis */
-#define G_E10_BAND_SIZE 8 // powers of 2 up to 64, defaults to 8
+// Required defines for audio analysis 
+#define 	G_E10_BAND_SIZE 8 			// powers of 2 up to 64, defaults to 8
 
 #include <AudioAnalysis.h>
 AudioAnalysis g_E10_audioInfo;
@@ -38,7 +39,7 @@ int32_t g_E10_samples[G_E10_SAMPLE_SIZE]; // I2S sample data is stored here
 
 void E10_init(){
 
-	g_E10_mic.begin(G_E10_SAMPLE_SIZE, G_E10_SAMPLE_RATE); // Starts the I2S DMA port.
+	g_E10_mic.begin(G_E10_SAMPLE_SIZE, G_E10_SAMPLE_RATE, I2S_NUM_0); // Starts the I2S DMA port.
 
 	// audio analysis setup
 	g_E10_audioInfo.setNoiseFloor(10);		 // sets the noise floor
@@ -49,19 +50,23 @@ void E10_init(){
 	g_E10_audioInfo.vuPeakFalloff(AudioAnalysis::EXPONENTIAL_FALLOFF, 0.05);   // set the volume unit peak fall off rate
 }
 
-void E10_run(){
+void E10_Audio_Process(){
 	g_E10_mic.read(g_E10_samples); // Stores the current I2S port buffer into g_E10_samples.
+
 	g_E10_audioInfo.computeFFT(g_E10_samples, G_E10_SAMPLE_SIZE, G_E10_SAMPLE_RATE);
 	g_E10_audioInfo.computeFrequencies(G_E10_BAND_SIZE);
 
-	float *bands = g_E10_audioInfo.getBands();
-	float *peaks = g_E10_audioInfo.getPeaks();
-	float vuMeter = g_E10_audioInfo.getVolumeUnit();
-	float vuMeterPeak = g_E10_audioInfo.getVolumeUnitPeak();
+}
+
+void E10_Audio_Print_Band(){
+	float *bands 		= g_E10_audioInfo.getBands();
+	float *peaks 		= g_E10_audioInfo.getPeaks();
+
+	float vuMeter 		= g_E10_audioInfo.getVolumeUnit();
+	float vuMeterPeak 	= g_E10_audioInfo.getVolumeUnitPeak();
 
 	// Send data to serial plotter
-	for (int i = 0; i < G_E10_BAND_SIZE; i++)
-	{
+	for (int i = 0; i < G_E10_BAND_SIZE; i++){
 		Serial.printf("%dHz:%.1f,", g_E10_audioInfo.getBandName(i), peaks[i]);
 	}
 
@@ -69,4 +74,10 @@ void E10_run(){
 	Serial.printf("vuValue:%.1f,vuPeak:%.2f", vuMeter, vuMeterPeak);
 
 	Serial.println();
+}
+
+void E10_run(){
+	E10_Audio_Process();
+
+	E10_Audio_Print_Band();
 }
