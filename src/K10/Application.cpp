@@ -2,7 +2,15 @@
 
 #include <TFT_eSPI.h>
 
-#include "K10/AudioProcessing/Processor.h"
+#ifdef AUDIOPROCESS_T1
+    #include "K10/AudioProcessing/Processor.h"
+#endif
+
+#ifdef AUDIOPROCESS_T2
+    #include "K10/AudioProcessT2/FFT_T2.h"
+#endif
+
+
 #include "K10/audio_input/ADCSampler.h"
 #include "K10/audio_input/I2SMEMSSampler.h"
 #include "K10/audio_input/I2SSampler.h"	 // I2SSampler.h"
@@ -23,7 +31,13 @@ Application::Application(TFT_eSPI &display) {
 	m_window_size	= G_K10_WINDOW_SIZE;
 	m_sample_buffer = (int16_t *)malloc(sizeof(int16_t) * G_K10_WINDOW_SIZE);
 	m_ui			= new UI(display, m_window_size);
-	m_processor		= new Processor(m_window_size);
+
+	#ifdef AUDIOPROCESS_T1
+	    m_processor		= new Processor(m_window_size);
+	#endif
+	#ifdef AUDIOPROCESS_T2
+	    m_processor		= new FFT_T2(m_window_size);
+	#endif
 
 	#ifdef G_K10_USE_I2S_MIC_INPUT
 		m_sampler = new I2SMEMSSampler(I2S_NUM_0, i2s_mic_pins, i2s_mic_Config);
