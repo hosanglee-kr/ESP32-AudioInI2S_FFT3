@@ -8,9 +8,10 @@ class FFT_T2 {
 private:
     int m_fft_size;
     int m_window_size;
-    arduinoFFT FFT;  // arduinoFFT 객체 추가
+    
     float *vReal;    // FFT 입력 데이터의 실수 부분
     float *vImag;    // FFT 입력 데이터의 허수 부분
+    ArduinoFFT<float> FFT ; //= ArduinoFFT<float>(vReal, vImag, samples, samplingFrequency);;  // arduinoFFT 객체 추가
 
 public:
     float *m_energy;
