@@ -751,6 +751,7 @@ void loop() {
 
 
 ---
+---
 
 해당 기능을
 
@@ -760,7 +761,224 @@ web page에 Waveform, Spectrogram, Graphic Equaliser
 3가지를 체크박스로 디스플레이를 제어,
 samples, fft 데이터를 각각 websocket으로 전송,
 html 파일을 littlefs를 사용,
-free
+freertos 적용
+samples, fft 데이터를 각각의 queue로 구현
 
+해당 기능을 `AsyncWebServer`를 이용하여 `WebUI` 클래스명으로 구현하고, 웹 페이지에서 `Waveform`, `Spectrogram`, `Graphic Equaliser` 3가지를 체크박스로 제어하는 방식으로, `samples`와 `fft` 데이터를 각각 WebSocket으로 전송하도록 하겠습니다. 또한, HTML 파일은 `LittleFS`를 사용하여 제공하며, `FreeRTOS`를 적용하고, `samples`와 `fft` 데이터를 각각의 큐로 관리하도록 코드를 작성하겠습니다.
+
+### 1. 프로젝트 구조
+
+```
+/project-root
+│
+├── /data            (웹 페이지 파일들이 위치하는 LittleFS 폴더)
+│   ├── index.html
+│   └── ...
+│
+├── /src
+│   ├── WebUI.h
+│   ├── WebUI.cpp
+│   └── main.cpp
+│
+└── platformio.ini   (PlatformIO를 사용하는 경우)
+```
+
+### 2. `main.cpp`
+```cpp
+#include <Arduino.h>
+#include <ESPAsyncWebServer.h>
+#include <LittleFS.h>
+#include "WebUI.h"
+
+WebUI *webUI;
+
+void setup() {
+  Serial.begin(115200);
+  
+  if (!LittleFS.begin()) {
+    Serial.println("An Error has occurred while mounting LittleFS");
+    return;
+  }
+
+  webUI = new WebUI(80);  // 80번 포트로 서버 실행
+
+  webUI->begin();
+}
+
+void loop() {
+  // FreeRTOS에서 사용할 경우 loop는 비워둠
+}
+```
+
+### 3. `WebUI.h`
+```cpp
+#pragma once
+
+#include <Arduino.h>
+#include <ESPAsyncWebServer.h>
+#include <queue.h>
+
+class WebUI {
+public:
+    WebUI(uint16_t port);
+    void begin();
+
+private:
+    AsyncWebServer server;
+    AsyncWebSocket ws;
+    
+    QueueHandle_t sampleQueue;
+    QueueHandle_t fftQueue;
+
+    void initWebSocket();
+    void initServer();
+};
+
+```
+
+### 4. `WebUI.cpp`
+```cpp
+#include "WebUI.h"
+#include <LittleFS.h>
+
+WebUI::WebUI(uint16_t port)
+: server(port), ws("/ws") {
+  sampleQueue = xQueueCreate(10, sizeof(float*));  // samples 큐
+  fftQueue = xQueueCreate(10, sizeof(float*));     // fft 큐
+}
+
+void WebUI::begin() {
+  initWebSocket();
+  initServer();
+  server.begin();
+}
+
+void WebUI::initWebSocket() {
+  ws.onEvent([&](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+    if (type == WS_EVT_CONNECT) {
+      Serial.printf("WebSocket client connected\n");
+    } else if (type == WS_EVT_DISCONNECT) {
+      Serial.printf("WebSocket client disconnected\n");
+    } else if (type == WS_EVT_DATA) {
+      // WebSocket으로 수신된 데이터 처리
+    }
+  });
+  
+  server.addHandler(&ws);
+  
+  // FreeRTOS 태스크를 사용하여 데이터를 전송
+  xTaskCreatePinnedToCore([](void *param) {
+    WebUI* self = reinterpret_cast<WebUI*>(param);
+    float *samples;
+    float *fft;
+
+    while (true) {
+      if (xQueueReceive(self->sampleQueue, &samples, portMAX_DELAY) == pdPASS) {
+        // WebSocket으로 샘플 데이터 전송
+        self->ws.textAll("samples:" + String(samples[0]));  // 예시로 첫 번째 데이터 전송
+      }
+
+      if (xQueueReceive(self->fftQueue, &fft, portMAX_DELAY) == pdPASS) {
+        // WebSocket으로 FFT 데이터 전송
+        self->ws.textAll("fft:" + String(fft[0]));  // 예시로 첫 번째 데이터 전송
+      }
+
+      vTaskDelay(10 / portTICK_PERIOD_MS);  // 적절한 딜레이 조정
+    }
+  }, "WebSocketTask", 4096, this, 1, NULL, 1);
+}
+
+void WebUI::initServer() {
+  // index.html을 LittleFS에서 제공
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(LittleFS, "/index.html", "text/html");
+  });
+
+  // 선택된 그래픽 옵션 처리
+  server.on("/toggle", HTTP_POST, [&](AsyncWebServerRequest *request) {
+    if (request->hasParam("waveform", true)) {
+      Serial.println("Waveform toggled");
+      // Waveform 처리
+    }
+    if (request->hasParam("spectrogram", true)) {
+      Serial.println("Spectrogram toggled");
+      // Spectrogram 처리
+    }
+    if (request->hasParam("equaliser", true)) {
+      Serial.println("Graphic Equaliser toggled");
+      // Graphic Equaliser 처리
+    }
+    request->send(200, "text/plain", "Toggled");
+  });
+}
+```
+
+### 5. `index.html` (LittleFS에 저장되는 웹 페이지)
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Visualizer</title>
+</head>
+<body>
+  <h1>Audio Visualizer Control</h1>
+  <form id="controlForm">
+    <label>
+      <input type="checkbox" name="waveform" id="waveform"> Waveform
+    </label><br>
+    <label>
+      <input type="checkbox" name="spectrogram" id="spectrogram"> Spectrogram
+    </label><br>
+    <label>
+      <input type="checkbox" name="equaliser" id="equaliser"> Graphic Equaliser
+    </label><br>
+    <button type="submit">Apply</button>
+  </form>
+
+  <script>
+    const form = document.getElementById('controlForm');
+    
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const formData = new FormData(form);
+      const params = new URLSearchParams();
+
+      formData.forEach((value, key) => {
+        params.append(key, value);
+      });
+
+      await fetch('/toggle', {
+        method: 'POST',
+        body: params
+      });
+    });
+
+    const ws = new WebSocket(`ws://${window.location.hostname}/ws`);
+
+    ws.onmessage = function(event) {
+      console.log(event.data);  // WebSocket으로 전송된 데이터 처리
+    };
+  </script>
+</body>
+</html>
+```
+
+### 6. 설명
+- **`WebUI` 클래스**: 웹 서버와 WebSocket을 관리하는 클래스입니다. 서버는 LittleFS에서 제공하는 `index.html`을 클라이언트에 전달하고, WebSocket을 통해 실시간 데이터 전송을 처리합니다.
+  
+- **WebSocket**: `samples`와 `fft` 데이터를 각각의 큐에서 받아 WebSocket으로 클라이언트에 전송합니다.
+
+- **HTML 페이지**: 클라이언트에서 체크박스를 통해 표시할 그래픽 요소를 선택할 수 있습니다.
+
+- **LittleFS**: HTML 파일을 LittleFS에 저장하고, 서버가 이를 제공하도록 구성했습니다.
+
+이제 이 코드를 사용하면, ESP32는 웹 서버를 실행하며, 사용자는 웹 페이지에서 실시간으로 오디오 데이터를 시각화하는 요소들을 제어할 수 있습니다.
+
+
+
+---
 
 
