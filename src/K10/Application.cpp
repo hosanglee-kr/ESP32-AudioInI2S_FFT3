@@ -2,22 +2,27 @@
 
 #include <TFT_eSPI.h>
 
-#ifdef AUDIOPROCESS_T1
+#ifdef G_K10_AUDIOPROCESS_T1
     #include "K10/AudioProcessT1/FFT_T1.h"
 	// #include "Processor.h"
 #endif
 
-#ifdef AUDIOPROCESS_T2
+#ifdef G_K10_AUDIOPROCESS_T2
     #include "K10/AudioProcessT2/FFT_T2.h"
 #endif
 
+#ifdef G_K10_USE_I2S_MIC_INPUT
+	#include "K10/audio_input/I2SMEMSSampler.h"
+#endif
+#ifndef G_K10_USE_I2S_MIC_INPUT
+	#include "K10/audio_input/ADCSampler.h"
+#endif 
 
-#include "K10/audio_input/ADCSampler.h"
-#include "K10/audio_input/I2SMEMSSampler.h"
 #include "K10/audio_input/I2SSampler.h"	 // I2SSampler.h"
+
 #include "K10/UI/UI.h"
 
-#include "K10/config.h"
+//#include "K10/K10_config.h"
 
 // Task to process samples
 void processing_task(void *param) {
@@ -33,17 +38,17 @@ Application::Application(TFT_eSPI &display) {
 	m_sample_buffer = (int16_t *)malloc(sizeof(int16_t) * G_K10_WINDOW_SIZE);
 	m_ui			= new UI(display, m_window_size);
 
-	#ifdef AUDIOPROCESS_T1
+	#ifdef G_K10_AUDIOPROCESS_T1
 	    m_processor		= new FFT_T1(m_window_size);
 	#endif
-	#ifdef AUDIOPROCESS_T2
+	#ifdef G_K10_AUDIOPROCESS_T2
 	    m_processor		= new FFT_T2(m_window_size);
 	#endif
 
 	#ifdef G_K10_USE_I2S_MIC_INPUT
-		m_sampler = new I2SMEMSSampler(I2S_NUM_0, i2s_mic_pins, i2s_mic_Config);
+		m_sampler = new I2SMEMSSampler(I2S_NUM_0, g_K10_i2s_mic_pins, g_K10_i2s_mic_config);
 	#else
-		m_sampler = new ADCSampler(ADC_UNIT_1, G_K10_ADC_MIC_CHANNEL, i2s_adc_config);
+		m_sampler = new ADCSampler(ADC_UNIT_1, G_K10_ADC_MIC_CHANNEL, g_K10_i2s_adc_config);
 	#endif
 
 	pinMode(G_K10_GPIO_BUTTON, INPUT_PULLUP);
