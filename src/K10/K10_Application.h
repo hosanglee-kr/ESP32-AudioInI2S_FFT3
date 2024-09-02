@@ -44,7 +44,8 @@ private:
 
 	I2SSampler *m_sampler;
 
-	void process_samples();
+	void process_i2sRead_FftCompute_UiUpdate();
+	//void process_samples();
 
 public:
 	Application(TFT_eSPI &display);
