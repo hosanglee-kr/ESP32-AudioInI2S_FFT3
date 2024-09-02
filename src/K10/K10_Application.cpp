@@ -1,4 +1,4 @@
-#include "Application.h"
+#include "K10_Application.h"
 
 #include <TFT_eSPI.h>
 
@@ -26,10 +26,10 @@
 
 // Task to process samples
 void processing_task(void *param) {
-	Application *application = (Application *)param;
+	Application *g_K10_App = (Application *)param;
 	// just sit in a loop processing samples as quickly as possible
 	while (true) {
-		application->process_samples();
+		g_K10_App->process_samples();
 	}
 }
 
