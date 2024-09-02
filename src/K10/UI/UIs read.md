@@ -752,6 +752,11 @@ void loop() {
 
 ---
 
+해당 기능을
+asyncwebserver를 이용하여
+web page에 그래프로 
+Waveform, Spectrogram, Graphic Equaliser 3가지 모두 디스플레이되게 
+
 
 
 
