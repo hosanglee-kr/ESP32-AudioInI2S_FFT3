@@ -1,7 +1,10 @@
-#include "config.h"
+
+
+
+#include "K10_config.h"
 
 // i2s config for using the internal ADC
-i2s_config_t i2s_adc_config = {
+i2s_config_t g_K10_i2s_adc_config = {
 	.mode				  = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_ADC_BUILT_IN),
 	.sample_rate		  = G_K10_SAMPLE_RATE,
 	.bits_per_sample	  = I2S_BITS_PER_SAMPLE_16BIT,
@@ -16,7 +19,7 @@ i2s_config_t i2s_adc_config = {
 	};
 
 // i2s config for reading from I2S
-i2s_config_t i2s_mic_Config = {
+i2s_config_t g_K10_i2s_mic_config = {
 	.mode				  = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
 	.sample_rate		  = G_K10_SAMPLE_RATE,
 	.bits_per_sample	  = I2S_BITS_PER_SAMPLE_32BIT,
@@ -31,7 +34,7 @@ i2s_config_t i2s_mic_Config = {
 	};
 
 // i2s microphone pins
-i2s_pin_config_t i2s_mic_pins = {
+i2s_pin_config_t g_K10_i2s_mic_pins = {
 	.bck_io_num	  = G_K10_I2S_MIC_SERIAL_CLOCK,
 	.ws_io_num	  = G_K10_I2S_MIC_LEFT_RIGHT_CLOCK,
 	.data_out_num = I2S_PIN_NO_CHANGE,

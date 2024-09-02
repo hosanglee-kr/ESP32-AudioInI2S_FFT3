@@ -1,9 +1,41 @@
-#include "Processor.h"
 
-#include "HammingWindow.h"
+#include "FFT_T1.h"
+
+
+//#include "HammingWindow.h"
+
+#include <math.h>
+#include <stdlib.h>
+
+HammingWindow::HammingWindow(int window_size) {
+	m_window_size  = window_size;
+	m_coefficients = static_cast<float *>(malloc(sizeof(float) * m_window_size));
+	// create the constants for a hamming window
+	const float arg = M_PI * 2.0 / window_size;
+	for (int i = 0; i < window_size; i++) {
+		float float_value = 0.5 - (0.5 * cos(arg * (i + 0.5)));
+		// Scale it to fixed point and round it.
+		m_coefficients[i] = float_value;
+	}
+}
+
+HammingWindow::~HammingWindow() {
+	free(m_coefficients);
+}
+
+void HammingWindow::applyWindow(float *input) {
+	for (int i = 0; i < m_window_size; i++) {
+		input[i] = input[i] * m_coefficients[i];
+	}
+}
+
+
+//#include "HammingWindow.h"
 #include "tools/kiss_fftr.h"
 
-Processor::Processor(int window_size) {
+
+
+FFT_T1::FFT_T1(int window_size) {
 	m_window_size = window_size;
 	// work out the FFT size
 	m_fft_size = 1;
@@ -25,7 +57,7 @@ Processor::Processor(int window_size) {
 	m_energy = static_cast<float *>(malloc(sizeof(float) * window_size / 4));
 }
 
-void Processor::update(int16_t *samples) {
+void FFT_T1::update(int16_t *samples) {
 	int offset = (m_fft_size - m_window_size) / 2;
 	for (int i = 0; i < m_window_size; i++) {
 		m_fft_input[offset + i] = samples[i] / 30.0f;

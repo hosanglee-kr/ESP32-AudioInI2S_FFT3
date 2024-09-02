@@ -5,20 +5,20 @@
 // #include <freertos/FreeRTOS.h>
 // #include <freertos/task.h>
 
-//#define AUDIOPROCESS_T1
-#define AUDIOPROCESS_T2
+//	#define G_K10_AUDIOPROCESS_T1
+//	#define G_K10_AUDIOPROCESS_T2
 
 
 
-#include "config.h"
+#include "K10_config.h"
 
 class UI;
 
-#ifdef AUDIOPROCESS_T1
-    class Processor;
+#ifdef G_K10_AUDIOPROCESS_T1
+    class FFT_T1;
 #endif
 
-#ifdef AUDIOPROCESS_T2
+#ifdef G_K10_AUDIOPROCESS_T2
     class FFT_T2;
 #endif
 
@@ -33,11 +33,11 @@ private:
 	int16_t	   *m_sample_buffer;
 	UI		   *m_ui;
 
-        #ifdef AUDIOPROCESS_T1
-            Processor  *m_processor;
+        #ifdef G_K10_AUDIOPROCESS_T1
+            FFT_T1  *m_processor;
         #endif
 
-        #ifdef AUDIOPROCESS_T2
+        #ifdef G_K10_AUDIOPROCESS_T2
            FFT_T2   *m_processor;
         #endif
 

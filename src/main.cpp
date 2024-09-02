@@ -48,10 +48,10 @@
 	#include <freertos/FreeRTOS.h>
 	#include <freertos/task.h>
 
-	#include "K10/Application.h"
+	#include "K10/K10_Application.h"
 	//#include "Application.h"
 
-	Application *application;
+	Application *g_K10_App;
 #endif
 
 
@@ -86,8 +86,8 @@ void setup(){
 		display->begin();
 		display->setRotation(1);
 
-		application = new Application(*display);
-		application->begin();
+		g_K10_App = new Application(*display);
+		g_K10_App->begin();
 	#endif
 
 
@@ -118,6 +118,6 @@ void loop(){
 	#endif
 
 	#ifdef K10
-		application->loop();
+		g_K10_App->loop();
 	#endif
 }

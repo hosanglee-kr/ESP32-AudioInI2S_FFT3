@@ -18,8 +18,6 @@
 #define     G_K10_WINDOW_SIZE                 512
 
 
-
-
 // are you using an I2S microphone - comment this out if you want to use an analog mic and ADC input
 #define     G_K10_USE_I2S_MIC_INPUT
 
@@ -36,9 +34,16 @@
 // Analog Microphone Settings - ADC1_CHANNEL_7 is GPIO35
 #define     G_K10_ADC_MIC_CHANNEL			    ADC1_CHANNEL_7
 
+
+
+#define     G_K10_AUDIOPROCESS_T1
+//#define   G_K10_AUDIOPROCESS_T2
+
+
 // i2s config for using the internal ADC
-extern  i2s_config_t    i2s_adc_config;
+extern  i2s_config_t    g_K10_i2s_adc_config;
 // i2s config for reading from of I2S
-extern  i2s_config_t    i2s_mic_Config;
+extern  i2s_config_t    g_K10_i2s_mic_config;
 // i2s microphone pins
-extern  i2s_pin_config_t i2s_mic_pins;
+extern  i2s_pin_config_t g_K10_i2s_mic_pins;
+

@@ -1,13 +1,26 @@
 #pragma once
 
+
+#include <inttypes.h>
+
+class HammingWindow {
+   private:
+	float *m_coefficients;
+	int	   m_window_size;
+
+   public:
+	HammingWindow(int window_size);
+	~HammingWindow();
+	void applyWindow(float *input);
+};
+
 #include <stdint.h>
 
 #include "tools/kiss_fftr.h"
 // #include "tools/kiss_fftr.h"
 
-class HammingWindow;
 
-class Processor{
+class FFT_T1{
 	private:
 		HammingWindow *m_hamming_window;
 		int m_fft_size;
@@ -19,6 +32,6 @@ class Processor{
 		float *m_energy;
 		float *m_fft_input;
 
-		Processor(int window_size);
+		FFT_T1(int window_size);
 		void update(int16_t *samples);
 };
