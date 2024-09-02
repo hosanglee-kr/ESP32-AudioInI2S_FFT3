@@ -311,3 +311,145 @@ String prepareFftData(float *fft) {
 - **HTML 파일 서빙**: `server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) { ... });`을 사용하여 루트 URL에 대한 요청을 처리하고 HTML 파일을 제공하는 핸들러를 설정합니다.
 - **WebSocket 데이터 전송**: WebSocket을 통해 `samples`와 `fft` 데이터를 전송하고, 클라이언트에서 이 데이터를 받아 차트를 업데이트합니다.
 - **체크박스 처리**: 체크박스
+
+
+---
+
+
+`UI` 클래스에 FreeRTOS를 적용하여, 데이터를 비동기적으로 처리하고 WebSocket을 통해 실시간으로 전송하는 방법을 살펴보겠습니다. FreeRTOS는 ESP32에서 멀티태스킹을 지원하는 실시간 운영체제입니다. 이를 통해 ESP32는 여러 개의 작업(Task)을 동시에 수행할 수 있습니다. 
+
+### FreeRTOS 적용 예제
+
+여기에서는 FreeRTOS를 사용하여 데이터를 처리하는 작업을 별도의 태스크(Task)로 분리하고, WebSocket을 통해 주기적으로 데이터를 전송하는 예제를 구현해보겠습니다.
+
+#### 1. `UI` 클래스 정의
+
+```cpp
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <LittleFS.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+class UI {
+private:
+    AsyncWebServer server;
+    AsyncWebSocket ws;
+    TaskHandle_t taskHandle;
+
+public:
+    UI(int port) : server(port), ws("/ws"), taskHandle(NULL) {}
+
+    void begin() {
+        // LittleFS 파일 시스템 초기화
+        if (!LittleFS.begin()) {
+            Serial.println("Failed to mount file system");
+            return;
+        }
+
+        // 웹 서버에서 HTML 페이지 서빙
+        server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+            request->send(LittleFS, "/index.html", String(), false);
+        });
+
+        // WebSocket 핸들러 설정
+        ws.onEvent([this](AsyncWebSocket *server, AsyncWebSocketClient *client, 
+                          AwsEventType type, void *arg, uint8_t *data, size_t len) {
+            onWebSocketEvent(server, client, type, arg, data, len);
+        });
+
+        server.addHandler(&ws);
+        server.begin();
+
+        // 데이터 처리 태스크 생성
+        xTaskCreatePinnedToCore(taskFunc, "DataUpdateTask", 4096, this, 1, &taskHandle, 1);
+    }
+
+    void update(float *samples, float *fft) {
+        // 데이터를 WebSocket으로 전송하는 코드
+        String samplesData = prepareData(samples, 256);
+        String fftData = prepareData(fft, 256);
+        
+        ws.textAll("samples:" + samplesData);  // WebSocket을 통해 samples 데이터 전송
+        ws.textAll("fft:" + fftData);          // WebSocket을 통해 fft 데이터 전송
+    }
+
+private:
+    static void taskFunc(void *pvParameters) {
+        UI *ui = static_cast<UI *>(pvParameters);
+        float samples[256];
+        float fft[256];
+
+        while (true) {
+            // 여기서 실제 데이터 처리를 하고 update() 메서드를 호출
+            for (int i = 0; i < 256; i++) {
+                samples[i] = random(0, 1024) / 1024.0;
+                fft[i] = random(0, 1024) / 1024.0;
+            }
+
+            ui->update(samples, fft);
+            vTaskDelay(pdMS_TO_TICKS(100));  // 100ms 대기
+        }
+    }
+
+    // WebSocket 이벤트 처리 메서드
+    void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, 
+                          AwsEventType type, void *arg, uint8_t *data, size_t len) {
+        if (type == WS_EVT_CONNECT) {
+            Serial.println("WebSocket client connected");
+        } else if (type == WS_EVT_DISCONNECT) {
+            Serial.println("WebSocket client disconnected");
+        }
+    }
+
+    // 데이터를 JSON 형식의 문자열로 변환하는 메서드
+    String prepareData(float *data, size_t len) {
+        String json = "[";
+        for (size_t i = 0; i < len; i++) {
+            json += String(data[i]);
+            if (i < len - 1) {
+                json += ",";
+            }
+        }
+        json += "]";
+        return json;
+    }
+};
+```
+
+#### 2. 주요 변경 사항 설명
+
+1. **FreeRTOS Task 추가**: 
+    - `taskFunc`라는 이름의 새로운 FreeRTOS 태스크를 생성했습니다. 이 태스크는 `begin()` 메서드가 호출될 때 생성됩니다. `taskFunc`는 주기적으로 데이터를 처리하고 `update()` 메서드를 호출하여 WebSocket을 통해 데이터를 전송합니다.
+
+2. **xTaskCreatePinnedToCore()**:
+    - `xTaskCreatePinnedToCore()` 함수를 사용하여 태스크를 특정 코어에 고정시켜 생성합니다. 이 함수는 태스크를 생성하고 실행할 코어를 지정할 수 있도록 합니다. ESP32는 듀얼 코어이기 때문에 이 기능을 활용하면 성능을 최적화할 수 있습니다. 여기서는 코어 1에 태스크를 할당했습니다.
+
+3. **vTaskDelay()**:
+    - `vTaskDelay(pdMS_TO_TICKS(100))`는 FreeRTOS에서 태스크를 일정 시간 동안 대기 상태로 만드는 함수입니다. 여기서는 100ms 동안 대기한 후 다시 태스크가 실행됩니다.
+
+#### 3. 사용 예시
+
+```cpp
+UI ui(80);
+
+void setup() {
+    Serial.begin(115200);
+    ui.begin();
+}
+
+void loop() {
+    // 메인 루프에서는 아무 작업도 수행하지 않습니다.
+    // 모든 작업은 FreeRTOS 태스크로 수행됩니다.
+}
+```
+
+### 요약
+
+- `UI` 클래스는 웹 기반 데이터 시각화 애플리케이션을 ESP32에서 쉽게 구현할 수 있도록 설계되었습니다.
+- FreeRTOS를 사용하여 데이터를 처리하는 태스크를 별도로 생성함으로써 ESP32의 멀티태스킹 기능을 활용할 수 있습니다.
+- 이 구조는 데이터를 비동기적으로 처리하고, WebSocket을 통해 실시간으로 전송하는 데 적합합니다.
+
+이를 통해 ESP32가 복잡한 작업을 동시에 수행할 수 있게 되며, 데이터 처리 및 전송 작업을 효율적으로 관리할 수 있습니다.
+
+---
