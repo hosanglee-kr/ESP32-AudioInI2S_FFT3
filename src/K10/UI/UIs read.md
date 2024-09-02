@@ -586,3 +586,172 @@ void loop() {
 --- 
 
 
+각각의 데이터(`samples`와 `fft`)를 처리하기 위해 별도의 큐를 사용하는 방법을 구현할 수 있습니다. 이렇게 하면 `samples`와 `fft` 데이터를 각각 독립적으로 관리하고 처리할 수 있습니다. 아래는 두 개의 큐를 사용하도록 수정된 `WebUI` 클래스의 예시입니다.
+
+### 1. `WebUI.h`
+
+```cpp
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <LittleFS.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
+
+class WebUI {
+private:
+    AsyncWebServer server;
+    AsyncWebSocket ws;
+    TaskHandle_t taskHandle;
+    QueueHandle_t samplesQueue;  // 샘플 데이터를 위한 큐
+    QueueHandle_t fftQueue;      // FFT 데이터를 위한 큐
+
+    static const int queueLength = 10;  // 큐 길이
+    static const int dataLength = 256;  // 샘플 및 FFT 데이터의 길이
+
+public:
+    WebUI(int port) 
+        : server(port), ws("/ws"), taskHandle(NULL) {
+        // 큐 생성: 각 항목은 float 배열(샘플 또는 FFT 데이터)을 담을 수 있는 크기
+        samplesQueue = xQueueCreate(queueLength, sizeof(float[dataLength]));
+        fftQueue = xQueueCreate(queueLength, sizeof(float[dataLength]));
+    }
+
+    void begin() {
+        // LittleFS 파일 시스템 초기화
+        if (!LittleFS.begin()) {
+            Serial.println("Failed to mount file system");
+            return;
+        }
+
+        // 웹 서버에서 HTML 페이지 서빙
+        server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+            request->send(LittleFS, "/index.html", String(), false);
+        });
+
+        // WebSocket 핸들러 설정
+        ws.onEvent([this](AsyncWebSocket *server, AsyncWebSocketClient *client, 
+                          AwsEventType type, void *arg, uint8_t *data, size_t len) {
+            onWebSocketEvent(server, client, type, arg, data, len);
+        });
+
+        server.addHandler(&ws);
+        server.begin();
+
+        // 데이터 처리 태스크 생성
+        xTaskCreatePinnedToCore(taskFunc, "DataUpdateTask", 4096, this, 1, &taskHandle, 1);
+    }
+
+    void updateSamples(float *samples) {
+        // 큐에 샘플 데이터를 삽입
+        if (xQueueSend(samplesQueue, samples, pdMS_TO_TICKS(10)) != pdPASS) {
+            Serial.println("Samples queue is full. Data update failed.");
+        }
+    }
+
+    void updateFFT(float *fft) {
+        // 큐에 FFT 데이터를 삽입
+        if (xQueueSend(fftQueue, fft, pdMS_TO_TICKS(10)) != pdPASS) {
+            Serial.println("FFT queue is full. Data update failed.");
+        }
+    }
+
+private:
+    static void taskFunc(void *pvParameters) {
+        WebUI *webUI = static_cast<WebUI *>(pvParameters);
+        float samples[dataLength];
+        float fft[dataLength];
+
+        while (true) {
+            // 큐에서 샘플 데이터 수신
+            if (xQueueReceive(webUI->samplesQueue, &samples, portMAX_DELAY) == pdPASS) {
+                webUI->sendSamplesToClient(samples);
+            }
+
+            // 큐에서 FFT 데이터 수신
+            if (xQueueReceive(webUI->fftQueue, &fft, portMAX_DELAY) == pdPASS) {
+                webUI->sendFFTToClient(fft);
+            }
+        }
+    }
+
+    void sendSamplesToClient(float *samples) {
+        // 샘플 데이터를 WebSocket으로 전송하는 코드
+        String samplesData = prepareData(samples, dataLength);
+        ws.textAll("samples:" + samplesData);  // WebSocket을 통해 samples 데이터 전송
+    }
+
+    void sendFFTToClient(float *fft) {
+        // FFT 데이터를 WebSocket으로 전송하는 코드
+        String fftData = prepareData(fft, dataLength);
+        ws.textAll("fft:" + fftData);  // WebSocket을 통해 fft 데이터 전송
+    }
+
+    // WebSocket 이벤트 처리 메서드
+    void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, 
+                          AwsEventType type, void *arg, uint8_t *data, size_t len) {
+        if (type == WS_EVT_CONNECT) {
+            Serial.println("WebSocket client connected");
+        } else if (type == WS_EVT_DISCONNECT) {
+            Serial.println("WebSocket client disconnected");
+        }
+    }
+
+    // 데이터를 JSON 형식의 문자열로 변환하는 메서드
+    String prepareData(float *data, size_t len) {
+        String json = "[";
+        for (size_t i = 0; i < len; i++) {
+            json += String(data[i]);
+            if (i < len - 1) {
+                json += ",";
+            }
+        }
+        json += "]";
+        return json;
+    }
+};
+```
+
+### 2. `main.ino`
+
+```cpp
+WebUI webUI(80);
+
+void setup() {
+    Serial.begin(115200);
+    webUI.begin();
+}
+
+void loop() {
+    // 필요시 webUI.updateSamples(samplesArray); 또는 webUI.updateFFT(fftArray); 호출
+}
+```
+
+### 주요 변경 사항 설명
+
+1. **두 개의 큐 생성**:
+   - `samplesQueue`는 샘플 데이터를 저장하는 큐입니다.
+   - `fftQueue`는 FFT 데이터를 저장하는 큐입니다.
+   - 이 두 큐는 각각 독립적으로 데이터를 처리하고 전송합니다.
+
+2. **`updateSamples()`와 `updateFFT()` 메서드**:
+   - 각각의 메서드는 데이터를 해당 큐에 삽입합니다. 만약 큐가 꽉 차면 실패 메시지를 출력합니다.
+
+3. **`taskFunc()`**:
+   - `taskFunc`에서 `samplesQueue`와 `fftQueue`를 각각 모니터링하며, 데이터가 도착하면 `sendSamplesToClient()` 또는 `sendFFTToClient()` 메서드를 호출하여 데이터를 WebSocket으로 전송합니다.
+
+4. **`sendSamplesToClient()`와 `sendFFTToClient()` 메서드**:
+   - 각 메서드는 해당 데이터를 WebSocket을 통해 클라이언트에 전송합니다.
+
+### 큐 사용의 이점
+- **데이터 분리 관리**: `samples`와 `fft` 데이터를 각각의 큐에서 관리하여, 서로 독립적으로 처리할 수 있습니다.
+- **동기화 관리**: 각 큐가 독립적으로 데이터를 처리하므로, 동기화와 데이터 충돌 문제가 줄어듭니다.
+
+이 구조는 `samples`와 `fft` 데이터를 각각 큐를 통해 안정적으로 관리하고, 웹 클라이언트에 전송할 수 있도록 합니다.
+
+
+---
+
+
+
+
