@@ -757,6 +757,8 @@ asyncwebserver를 이용하여
 web page에 그래프로 
 Waveform, Spectrogram, Graphic Equaliser 3가지 모두 디스플레이되게 
 
-samples, fft 데이터를 각각 websocket전송
+samples, fft 데이터를 각각 websocket으로 전송
+웹페이지 체크박스로 3가지 차트 디스플리이 여부 제어
+
 
 
