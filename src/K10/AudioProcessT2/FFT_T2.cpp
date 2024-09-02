@@ -28,11 +28,14 @@ void FFT_T2::update(int16_t *samples) {
     }
 
     // arduinoFFT의 windowing 함수로 Hamming 윈도우 적용
-    FFT.windowing(m_fft_input, m_fft_size, FFT_WIN_TYP_HAMMING);
+    FFT.windowing(m_fft_input, m_fft_size, FFTWindow::Hamming, FFTDirection::Forward);	
+    //compute(T *vReal, T *vImag, uint_fast16_t samples, FFTDirection dir) const;
+    //FFT.windowing(FFTWindow::Hamming, FFTDirection::Forward);	    // Weigh data 
+    //FFT.windowing(m_fft_input, m_fft_size, FFT_WIN_TYP_HAMMING);
 
     // FFT 계산 수행
-    FFT.compute(m_fft_input, vImag, m_fft_size);
-
+    FFT.compute(m_fft_input, vImag, m_fft_size, FFTDirection::Forward);
+    // void compute(T *vReal, T *vImag, uint_fast16_t samples, FFTDirection dir) const;
     // 복소수 결과를 크기로 변환
     FFT.complexToMagnitude(m_fft_input, vImag, m_fft_size);
 
