@@ -754,12 +754,10 @@ void loop() {
 
 해당 기능을
 asyncwebserver를 이용하여
-web page에 
-Waveform, Spectrogram, Graphic Equaliser 
-3가지를 체크박스로 디스플레이되게 
+web page에 Waveform, Spectrogram, Graphic Equaliser 
+3가지를 체크박스로 디스플레이를 제어
 
 samples, fft 데이터를 각각 websocket으로 전송
-웹페이지 체크박스로 3가지 차트 디스플리이 여부 제어
 html 파일을 littlefs를 사용하게 변경
 
 
