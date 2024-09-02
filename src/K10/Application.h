@@ -5,8 +5,8 @@
 // #include <freertos/FreeRTOS.h>
 // #include <freertos/task.h>
 
-//#define AUDIOPROCESS_T1
-#define AUDIOPROCESS_T2
+#define AUDIOPROCESS_T1
+//#define AUDIOPROCESS_T2
 
 
 
@@ -15,7 +15,7 @@
 class UI;
 
 #ifdef AUDIOPROCESS_T1
-    class Processor;
+    class FFT_T1;
 #endif
 
 #ifdef AUDIOPROCESS_T2
@@ -34,7 +34,7 @@ private:
 	UI		   *m_ui;
 
         #ifdef AUDIOPROCESS_T1
-            Processor  *m_processor;
+            FFT_T1  *m_processor;
         #endif
 
         #ifdef AUDIOPROCESS_T2

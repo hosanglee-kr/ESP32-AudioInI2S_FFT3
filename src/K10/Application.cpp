@@ -3,7 +3,8 @@
 #include <TFT_eSPI.h>
 
 #ifdef AUDIOPROCESS_T1
-    #include "K10/AudioProcessing/Processor.h"
+    #include "K10/AudioProcessT1/FFT_T1.h"
+	// #include "Processor.h"
 #endif
 
 #ifdef AUDIOPROCESS_T2
@@ -15,8 +16,8 @@
 #include "K10/audio_input/I2SMEMSSampler.h"
 #include "K10/audio_input/I2SSampler.h"	 // I2SSampler.h"
 #include "K10/UI/UI.h"
-// #include "Processor.h"
-#include "config.h"
+
+#include "K10/config.h"
 
 // Task to process samples
 void processing_task(void *param) {
@@ -33,7 +34,7 @@ Application::Application(TFT_eSPI &display) {
 	m_ui			= new UI(display, m_window_size);
 
 	#ifdef AUDIOPROCESS_T1
-	    m_processor		= new Processor(m_window_size);
+	    m_processor		= new FFT_T1(m_window_size);
 	#endif
 	#ifdef AUDIOPROCESS_T2
 	    m_processor		= new FFT_T2(m_window_size);
