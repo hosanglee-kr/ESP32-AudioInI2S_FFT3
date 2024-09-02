@@ -453,3 +453,136 @@ void loop() {
 이를 통해 ESP32가 복잡한 작업을 동시에 수행할 수 있게 되며, 데이터 처리 및 전송 작업을 효율적으로 관리할 수 있습니다.
 
 ---
+
+
+`UI` 클래스명을 `WebUI`로 변경하려면 클래스 선언과 정의, 그리고 클래스 이름이 사용된 모든 곳에서 `UI`를 `WebUI`로 수정해야 합니다. 다음은 이를 반영한 코드입니다.
+
+### 1. `WebUI.h`
+
+```cpp
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <LittleFS.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+class WebUI {
+private:
+    AsyncWebServer server;
+    AsyncWebSocket ws;
+    TaskHandle_t taskHandle;
+
+public:
+    WebUI(int port) : server(port), ws("/ws"), taskHandle(NULL) {}
+
+    void begin() {
+        // LittleFS 파일 시스템 초기화
+        if (!LittleFS.begin()) {
+            Serial.println("Failed to mount file system");
+            return;
+        }
+
+        // 웹 서버에서 HTML 페이지 서빙
+        server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+            request->send(LittleFS, "/index.html", String(), false);
+        });
+
+        // WebSocket 핸들러 설정
+        ws.onEvent([this](AsyncWebSocket *server, AsyncWebSocketClient *client, 
+                          AwsEventType type, void *arg, uint8_t *data, size_t len) {
+            onWebSocketEvent(server, client, type, arg, data, len);
+        });
+
+        server.addHandler(&ws);
+        server.begin();
+
+        // 데이터 처리 태스크 생성
+        xTaskCreatePinnedToCore(taskFunc, "DataUpdateTask", 4096, this, 1, &taskHandle, 1);
+    }
+
+    void update(float *samples, float *fft) {
+        // 데이터를 WebSocket으로 전송하는 코드
+        String samplesData = prepareData(samples, 256);
+        String fftData = prepareData(fft, 256);
+        
+        ws.textAll("samples:" + samplesData);  // WebSocket을 통해 samples 데이터 전송
+        ws.textAll("fft:" + fftData);          // WebSocket을 통해 fft 데이터 전송
+    }
+
+private:
+    static void taskFunc(void *pvParameters) {
+        WebUI *webUI = static_cast<WebUI *>(pvParameters);
+        float samples[256];
+        float fft[256];
+
+        while (true) {
+            // 여기서 실제 데이터 처리를 하고 update() 메서드를 호출
+            for (int i = 0; i < 256; i++) {
+                samples[i] = random(0, 1024) / 1024.0;
+                fft[i] = random(0, 1024) / 1024.0;
+            }
+
+            webUI->update(samples, fft);
+            vTaskDelay(pdMS_TO_TICKS(100));  // 100ms 대기
+        }
+    }
+
+    // WebSocket 이벤트 처리 메서드
+    void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, 
+                          AwsEventType type, void *arg, uint8_t *data, size_t len) {
+        if (type == WS_EVT_CONNECT) {
+            Serial.println("WebSocket client connected");
+        } else if (type == WS_EVT_DISCONNECT) {
+            Serial.println("WebSocket client disconnected");
+        }
+    }
+
+    // 데이터를 JSON 형식의 문자열로 변환하는 메서드
+    String prepareData(float *data, size_t len) {
+        String json = "[";
+        for (size_t i = 0; i < len; i++) {
+            json += String(data[i]);
+            if (i < len - 1) {
+                json += ",";
+            }
+        }
+        json += "]";
+        return json;
+    }
+};
+```
+
+### 2. 사용 예시 (`main.ino`)
+
+```cpp
+WebUI webUI(80);
+
+void setup() {
+    Serial.begin(115200);
+    webUI.begin();
+}
+
+void loop() {
+    // 메인 루프에서는 아무 작업도 수행하지 않습니다.
+    // 모든 작업은 FreeRTOS 태스크로 수행됩니다.
+}
+```
+
+### 변경 사항 설명
+
+1. **클래스 이름 변경**:
+   - `UI` 클래스명을 `WebUI`로 변경했습니다. 모든 멤버 함수, 생성자, 클래스 포인터 등에서 `UI`를 `WebUI`로 수정했습니다.
+
+2. **`taskFunc` 함수 내에서의 변경**:
+   - `taskFunc` 함수 내에서 `UI` 대신 `WebUI` 포인터를 사용하도록 수정했습니다.
+
+3. **사용 예시**:
+   - `WebUI` 클래스를 사용하는 부분에서도 이름을 변경했습니다.
+
+이제 `WebUI` 클래스를 사용하여 웹 인터페이스에서 실시간 데이터를 처리하고 전송할 수 있습니다. 이 변경 사항은 클래스 이름만 바뀐 것이며, 기존의 기능은 그대로 유지됩니다.
+
+
+
+--- 
+
+
