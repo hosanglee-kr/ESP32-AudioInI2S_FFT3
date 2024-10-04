@@ -29,7 +29,8 @@ void processing_task(void *param) {
 	Application *g_K10_App = (Application *)param;
 	// just sit in a loop processing samples as quickly as possible
 	while (true) {
-		g_K10_App->process_samples();
+		g_K10_App->process_i2sRead_FftCompute_UiUpdate();
+		//g_K10_App->process_samples();
 	}
 }
 
@@ -63,7 +64,8 @@ void Application::begin() {
 	m_sampler->start();
 }
 
-void Application::process_samples() {
+void Application::process_i2sRead_FftCompute_UiUpdate() {
+//void Application::process_samples() {
 	// grab the samples
 	m_sampler->read(m_sample_buffer, G_K10_WINDOW_SIZE);
 	m_processor->update(m_sample_buffer);

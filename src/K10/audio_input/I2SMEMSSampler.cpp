@@ -23,14 +23,61 @@ void I2SMEMSSampler::configureI2S() {
 }
 
 int I2SMEMSSampler::read(int16_t *samples, int count) {
-	// read from i2s
-	int32_t *raw_samples = (int32_t *)malloc(sizeof(int32_t) * count);
-	size_t	 bytes_read	 = 0;
-	i2s_read(m_i2sPort, raw_samples, sizeof(int32_t) * count, &bytes_read, portMAX_DELAY);
-	int samples_read = bytes_read / sizeof(int32_t);
-	for (int i = 0; i < samples_read; i++) {
-		samples[i] = (raw_samples[i] & 0xFFFFFFF0) >> 14;
-	}
+
+	#if G_K10_I2S_MIC_BITS_PER_SAMPLE == I2S_BITS_PER_SAMPLE_16BIT
+		// 원시 샘플을 위한 메모리 할당
+		int16_t *raw_samples = (int16_t *)malloc(sizeof(int16_t) * count);
+		if (raw_samples == NULL) {
+			// 메모리 할당 실패 처리
+			return -1;
+		}
+
+		size_t bytes_read = 0;
+		// I2S에서 읽기
+		if (i2s_read(m_i2sPort, raw_samples, sizeof(int16_t) * count, &bytes_read, portMAX_DELAY) != ESP_OK) {
+			// 읽기 오류 처리
+			free(raw_samples);
+			return -1;
+		}
+
+		// 읽은 바이트 수를 샘플 수로 변환
+		int samples_read = bytes_read / sizeof(int16_t);
+		// 처리할 수 있는 샘플 수를 초과하지 않도록 보장
+		samples_read = (samples_read > count) ? count : samples_read;
+
+		// 원시 샘플을 직접 복사
+		for (int i = 0; i < samples_read; i++) {
+			samples[i] = raw_samples[i];
+		}
+
+	#elif G_K10_I2S_MIC_BITS_PER_SAMPLE == I2S_BITS_PER_SAMPLE_32BIT
+		// 원시 샘플을 위한 메모리 할당
+		int32_t *raw_samples = (int32_t *)malloc(sizeof(int32_t) * count);
+		if (raw_samples == NULL) {
+			// 메모리 할당 실패 처리
+			return -1;
+		}
+
+		size_t bytes_read = 0;
+		// I2S에서 읽기
+		if (i2s_read(m_i2sPort, raw_samples, sizeof(int32_t) * count, &bytes_read, portMAX_DELAY) != ESP_OK) {
+			// 읽기 오류 처리
+			free(raw_samples);
+			return -1;
+		}
+
+		int samples_read = bytes_read / sizeof(int32_t);
+		// 처리할 수 있는 샘플 수를 초과하지 않도록 보장
+		samples_read = (samples_read > count) ? count : samples_read;
+
+		// 원시 샘플 처리
+		for (int i = 0; i < samples_read; i++) {
+			samples[i] = (raw_samples[i] & 0xFFFFFFF0) >> 14;
+		}
+	#endif
+
+
+
 	free(raw_samples);
 	return samples_read;
 }
