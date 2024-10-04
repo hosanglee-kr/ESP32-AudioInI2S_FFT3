@@ -3,7 +3,6 @@
 #include <WiFi.h>
 #include <WiFiMulti.h>
 
-
 //#define DD10_FASTLED
 
 #ifdef DD10_FASTLED
